@@ -25,8 +25,8 @@ const connect = () => {
 }
 
 app.use(cors(corsOptions));
-app.use(express.json({limit: '5mb'}));
-app.use(bodyParser.json({limit: '5mb'}))
+app.use(express.json({limit: '15mb'}));
+app.use(bodyParser.json({limit: '15mb'}))
 app.use("/files", filesRoutes)
 app.get('/', (req,res) => {res.status(200).json('working!')});
 

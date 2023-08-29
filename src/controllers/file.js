@@ -2,27 +2,27 @@ import {ref, uploadBytes, updateMetadata, getDownloadURL, listAll} from "firebas
 import {storage} from "../../firebase.js";
 import File from "../models/File.js";
 
-export const upload = async (req, res) => {
+export const uploadFiles = async (req, res) => {
     try {
         const accessCode = await generateAccessCode();
-
-        const fileRef = ref(storage, `files/${accessCode}/${req.body.name}`);
-        const base64 = req.body.file.split(';base64,');
-        const fileHeader = base64[0].split(":")[1];
-        const fileBuffer = Buffer.from(base64[1], 'base64');
-
-
-
-        console.log(fileHeader);
-        console.log(req.body.file.length);
         console.log('Access Code: ' +  accessCode);
-        await uploadBytes(fileRef, fileBuffer);
-        // await updateMetadata(fileRef, {contentType: fileHeader});
-        await File.findByIdAndUpdate('64ea5249d38a6c63d7246597', {
-            $push: {takenIds: accessCode}
-        }, {new: true})
 
-        res.status(200).json("Access Code: " + accessCode);
+
+        const files = req.body.files;
+        const promises = [];
+
+        for(const file of files) {
+            promises.push(await uploadFile(file, accessCode))
+        }
+
+        Promise.all(promises).then(() => {
+            console.log('Done')
+            File.findByIdAndUpdate('64ea5249d38a6c63d7246597', {
+                $push: {takenIds: accessCode}
+            }, {new: true})
+
+            res.status(201).json("Access Code: " + accessCode);
+        })
     }
     catch (err) {
         res.status(500).json(err.message);
@@ -34,25 +34,43 @@ export const getFiles = async (req, res) => {
         const id = req.params.id;
         const dirRef = ref(storage, `files/${id}`);
         console.log(id)
-        await listAll(dirRef).then(ref => {
-            console.log(ref.items[0].name)
-             getDownloadURL(ref.items[0])
-                .then(url => {
-                    const file = [{
-                        name: ref.items[0].name,
-                        url: url
-                    }]
-                    res.status(200).json(file)
-                })
+        await listAll(dirRef).then(async ref => {
+            const files = [];
+            for (let i = 0; i < ref.items.length; i++) {
+                getDownloadURL(ref.items[i])
+                    .then(url => {
+                        const file = {
+                            name: ref.items[i].name,
+                            url: url
+                        }
+                        files.push(file);
+                        if (i === ref.items.length - 1) {
+                            res.status(200).json({
+                                id:id,
+                                files: files
+                            })
+                        }
+                    })
+            }
+        }).catch(() => {
+            res.status(404).json('no such file');
         })
-            .catch(err => {
-                res.status(404).json('no such file');
-            })
-
     }
     catch (err) {
         res.status(500).json(err.message);
     }
+}
+
+const uploadFile = async (file, accessCode) => {
+    const fileRef = ref(storage, `files/${accessCode}/${file.name}`);
+    const base64 = file.data.split(';base64,');
+    const fileHeader = base64[0].split(":")[1];
+    const fileBuffer = Buffer.from(base64[1], 'base64');
+
+    console.log(file.name)
+
+    await uploadBytes(fileRef, fileBuffer);
+    // await updateMetadata(fileRef, {contentType: fileHeader});
 }
 
 const generateAccessCode = async () => {
