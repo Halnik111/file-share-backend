@@ -15,14 +15,15 @@ export const uploadFiles = async (req, res) => {
             promises.push(await uploadFile(file, accessCode))
         }
 
-        Promise.all(promises).then(() => {
-            console.log('Done')
-            File.findByIdAndUpdate('64ea5249d38a6c63d7246597', {
+        Promise.all(promises).then(async () => {
+            await File.findByIdAndUpdate('64ea5249d38a6c63d7246597', {
                 $push: {takenIds: accessCode}
             }, {new: true})
-
-            res.status(201).json("Access Code: " + accessCode);
         })
+            .then(() => {
+                console.log('Done');
+                res.status(201).json(accessCode);
+            })
     }
     catch (err) {
         res.status(500).json(err.message);
@@ -34,26 +35,23 @@ export const getFiles = async (req, res) => {
         const id = req.params.id;
         const dirRef = ref(storage, `files/${id}`);
         console.log(id)
-        await listAll(dirRef).then(async ref => {
-            const files = [];
-            for (let i = 0; i < ref.items.length; i++) {
-                getDownloadURL(ref.items[i])
-                    .then(url => {
-                        const file = {
-                            name: ref.items[i].name,
-                            url: url
-                        }
-                        files.push(file);
-                        if (i === ref.items.length - 1) {
-                            res.status(200).json({
-                                id:id,
-                                files: files
-                            })
-                        }
-                    })
-            }
-        }).catch(() => {
-            res.status(404).json('no such file');
+        const allFiles = await listAll(dirRef)
+        if (allFiles.items.length === 0) {
+            res.status(404).json('no such file')
+            return;
+        }
+
+        const promises = []
+        for (const fileRef of allFiles.items) {
+            promises.push(getFile(fileRef))
+        }
+
+        Promise.all(promises).then(files => {
+            // console.log(files)
+            res.status(200).json({
+                id: id,
+                files: files
+            })
         })
     }
     catch (err) {
@@ -71,6 +69,15 @@ const uploadFile = async (file, accessCode) => {
 
     await uploadBytes(fileRef, fileBuffer);
     // await updateMetadata(fileRef, {contentType: fileHeader});
+};
+
+const getFile = async (ref) => {
+    return await getDownloadURL(ref)
+        .then(url => {
+            return {
+                url: url,
+                name: ref.name}
+        })
 }
 
 const generateAccessCode = async () => {
