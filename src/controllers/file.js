@@ -1,4 +1,4 @@
-import {ref, uploadBytes, updateMetadata, getDownloadURL, listAll} from "firebase/storage";
+import {getDownloadURL, listAll, ref, uploadBytes} from "firebase/storage";
 import {storage} from "../../firebase.js";
 import File from "../models/File.js";
 
@@ -34,17 +34,22 @@ export const getFiles = async (req, res) => {
     try {
         const id = req.params.id;
         const dirRef = ref(storage, `files/${id}`);
-        console.log(id)
-        const allFiles = await listAll(dirRef)
-        if (allFiles.items.length === 0) {
+        const directory = await listAll(dirRef);
+        if (directory.items.length === 0) {
             res.status(404).json('no such file')
             return;
         }
 
-        const promises = []
-        for (const fileRef of allFiles.items) {
+        const promises = [];
+
+        for (const fileRef of directory.items) {
+            await getFile(fileRef).then(files => console.log(files.name));
             promises.push(getFile(fileRef))
+
         }
+
+        (await getFolders(dirRef, promises)).forEach(item => getFolders(item,promises));
+
 
         Promise.all(promises).then(files => {
             // console.log(files)
@@ -56,6 +61,35 @@ export const getFiles = async (req, res) => {
     }
     catch (err) {
         res.status(500).json(err.message);
+    }
+}
+
+const getFolders = async (ref, promises) => {
+    promises.push(listAll(ref)).prefixes;
+    const a = (await listAll(ref)).prefixes;
+    a.forEach(item => console.log(item.name))
+
+}
+
+const searchFolders = async (directory, promises, folder) => {
+
+    for (const dirRef of directory.prefixes) {
+        const innerFiles = await listAll(dirRef);
+        for (const file of innerFiles.items) {
+            await getFile(file).then(result => folder.files.push(result));
+        }
+
+        if (innerFiles.prefixes.length !== 0) {
+            folder.childFolders.push(searchFolders(innerFiles, promises));
+        }
+        // else {
+        //     promises.push(folder);
+        // }
+        console.log(folder);
+
+
+        if (directory.prefixes.length === 0)
+            return promises.push(folder);
     }
 }
 
