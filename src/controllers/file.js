@@ -32,7 +32,7 @@ export const uploadFiles = async (req, res) => {
 
 export const getFiles = async (req, res) => {
     try {
-        const id = req.params.id;
+        const id = req.params.id.replaceAll("@", "/");
         const dirRef = ref(storage, `files/${id}`);
         const directory = await listAll(dirRef);
         if (directory.items.length === 0) {
@@ -45,51 +45,32 @@ export const getFiles = async (req, res) => {
         for (const fileRef of directory.items) {
             await getFile(fileRef).then(files => console.log(files.name));
             promises.push(getFile(fileRef))
-
         }
 
-        (await getFolders(dirRef, promises)).forEach(item => getFolders(item,promises));
-
+        for (const folderRef of directory.prefixes) {
+            promises.push(getFolder(folderRef))
+        }
 
         Promise.all(promises).then(files => {
-            // console.log(files)
+            const fileList = [];
+            const folderList = [];
+            files.forEach(file => {
+                if (file.url) {
+                    fileList.push(file)
+                }
+                else {
+                    folderList.push(file)
+                }
+            })
             res.status(200).json({
                 id: id,
-                files: files
+                files: fileList,
+                folders: folderList
             })
         })
     }
     catch (err) {
         res.status(500).json(err.message);
-    }
-}
-
-const getFolders = async (ref, promises) => {
-    promises.push(listAll(ref)).prefixes;
-    const a = (await listAll(ref)).prefixes;
-    a.forEach(item => console.log(item.name))
-
-}
-
-const searchFolders = async (directory, promises, folder) => {
-
-    for (const dirRef of directory.prefixes) {
-        const innerFiles = await listAll(dirRef);
-        for (const file of innerFiles.items) {
-            await getFile(file).then(result => folder.files.push(result));
-        }
-
-        if (innerFiles.prefixes.length !== 0) {
-            folder.childFolders.push(searchFolders(innerFiles, promises));
-        }
-        // else {
-        //     promises.push(folder);
-        // }
-        console.log(folder);
-
-
-        if (directory.prefixes.length === 0)
-            return promises.push(folder);
     }
 }
 
@@ -112,6 +93,30 @@ const getFile = async (ref) => {
                 url: url,
                 name: ref.name}
         })
+}
+
+export const getFileTest = async (req, res) => {
+    const dirRef = ref(storage, `files/${req.params.id}`);
+    const directory = await listAll(dirRef);
+
+    const thisOne = directory.items[0];
+    await getDownloadURL(thisOne)
+        .then(url => {
+            res.status(200).json({
+                id: req.params.id,
+                url: url,
+                name: thisOne.name
+            })
+        })
+}
+
+const getFolder = async (ref) => {
+    const path = ref.fullPath.substring(6).replaceAll("/", "@");
+    console.log(path)
+    return {
+        storage: path,
+        name: ref.name
+    }
 }
 
 const generateAccessCode = async () => {
