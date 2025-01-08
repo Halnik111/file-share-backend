@@ -33,7 +33,7 @@ app.use("/files", filesRoutes)
 app.get('/', (req,res) => {res.status(200).json('working!@!')});
 
 
-const port = Number(process.env.PORT || 8080);
+const port = Number(process.env.PORT || 3001);
 app.listen(port, "0.0.0.0", () => {
     console.log("Connected! " + port);
     //connect();
