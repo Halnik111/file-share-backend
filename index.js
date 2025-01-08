@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 import cors from "cors";
 import filesRoutes from './src/routes/files.js';
 import bodyParser from "body-parser";
+import morgan from "morgan";
 
 
 const corsOptions ={
@@ -24,11 +25,12 @@ const connect = () => {
             });
 }
 
+app.use(morgan('combined'));
 app.use(cors(corsOptions));
 app.use(express.json({limit: '15mb'}));
 app.use(bodyParser.json({limit: '15mb'}))
 app.use("/files", filesRoutes)
-app.get('/', (req,res) => {res.status(200).json('working!')});
+app.get('/', (req,res) => {res.status(200).json('working!@!')});
 
 
 app.listen(process.env.PORT || 8080, () => {
