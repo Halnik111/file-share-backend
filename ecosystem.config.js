@@ -1,7 +1,7 @@
 module.exports = {
     apps: [
         {
-            name: 'file-share',
+            name: 'file-shar-backend',
             script: 'npm',
             args: 'run start:dev',
             env: {
