@@ -19,6 +19,7 @@ const connect = () => {
     mongoose.connect(process.env.MONGO)
             .then(() => {
                 console.log("DB Connected");
+                console.log(process.env.FIREBASE_BUCKET)
             })
             .catch(err => {
                 throw err;
