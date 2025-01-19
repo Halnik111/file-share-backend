@@ -4,7 +4,6 @@ import cors from "cors";
 import filesRoutes from './src/routes/files.js';
 import bodyParser from "body-parser";
 import morgan from "morgan";
-import 'dotenv/config';
 
 const corsOptions ={
     origin: '*',
